@@ -37,6 +37,20 @@ func WithAPIBaseURL(ctx context.Context, raw string) (context.Context, error) {
 	return context.WithValue(ctx, apiBaseURLContextKey{}, &url.URL{Scheme: u.Scheme, Host: u.Host}), nil
 }
 
+// WithAPIBaseURLFrom copies the GOG_GOOGLE_API_BASE_URL setting of src into
+// ctx, for clients built from contexts that do not derive from the command.
+func WithAPIBaseURLFrom(ctx, src context.Context) context.Context {
+	if src == nil {
+		return ctx
+	}
+
+	if baseURL, _ := src.Value(apiBaseURLContextKey{}).(*url.URL); baseURL != nil {
+		return context.WithValue(ctx, apiBaseURLContextKey{}, baseURL)
+	}
+
+	return ctx
+}
+
 // APIBaseURLEnabled reports whether GOG_GOOGLE_API_BASE_URL is set, in which
 // case gog needs no credentials of its own.
 func APIBaseURLEnabled(ctx context.Context) bool {
