@@ -129,6 +129,10 @@ func authenticatedTransportWithStoredScopeCheck(
 	scopes []string,
 	requireStoredGrant bool,
 ) (http.RoundTripper, error) {
+	if client, ok := apiBaseURLHTTPClient(ctx); ok {
+		return client.Transport, nil
+	}
+
 	var ts oauth2.TokenSource
 	var storedOAuth *persistingTokenSource
 
@@ -186,6 +190,10 @@ func optionsForAccountScopesRequiringStoredGrant(ctx context.Context, serviceLab
 }
 
 func optionsForServiceAccountScopes(ctx context.Context, serviceLabel string, email string, scopes []string) ([]option.ClientOption, error) {
+	if client, ok := apiBaseURLHTTPClient(ctx); ok {
+		return []option.ClientOption{option.WithHTTPClient(client)}, nil
+	}
+
 	if dependencies, ok := authDependenciesFromContext(ctx); ok && dependencies.Mode == AuthModeADC {
 		slog.Debug("using Application Default Credentials (GOG_AUTH_MODE=adc)", "serviceLabel", serviceLabel)
 
@@ -223,6 +231,10 @@ func optionsForServiceAccountScopes(ctx context.Context, serviceLabel string, em
 }
 
 func tokenSourceClientOptions(ctx context.Context, ts oauth2.TokenSource) []option.ClientOption {
+	if client, ok := apiBaseURLHTTPClient(ctx); ok {
+		return []option.ClientOption{option.WithHTTPClient(client)}
+	}
+
 	return []option.ClientOption{option.WithHTTPClient(&http.Client{
 		Transport: readOnlyTransportFromContext(ctx, newAuthenticatedRetryTransport(ctx, ts)),
 	})}
@@ -233,7 +245,7 @@ func tokenSourceClientOptions(ctx context.Context, ts oauth2.TokenSource) []opti
 func newAuthenticatedRetryTransport(ctx context.Context, ts oauth2.TokenSource) *RetryTransport {
 	return NewRetryTransport(&oauth2.Transport{
 		Source: ts,
-		Base:   apiBaseURLTransportFromContext(ctx, quotaProjectTransportFromContext(ctx, newBaseTransport())),
+		Base:   quotaProjectTransportFromContext(ctx, newBaseTransport()),
 	})
 }
 

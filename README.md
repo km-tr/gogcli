@@ -87,15 +87,17 @@ Generic API commands support service-hosted Discovery documents such as Meet v2
 when the default central Directory returns 404. Explicit
 `GOG_DISCOVERY_BASE_URL` overrides retain their existing behavior.
 
-`GOG_GOOGLE_API_BASE_URL=http(s)://host[:port]` sends authenticated requests
-for `https://googleapis.com` and `https://*.googleapis.com` to another endpoint,
-such as a test server, proxy, emulator, or sandbox relay. Path and query are
-kept, the original host is sent as `X-Forwarded-Host`, and the bearer token goes
-to that endpoint. Discovery documents still use `GOG_DISCOVERY_BASE_URL`;
-token refresh, gRPC clients such as the Pub/Sub pull used by
-`gmail watch pull`, Maps/Places API-key calls, and downloads from
-non-googleapis.com URLs are not redirected. Service-specific `GOG_*_BASE_URL` values that point
-elsewhere take precedence. Invalid values fail with a usage error.
+`GOG_GOOGLE_API_BASE_URL=http(s)://host[:port]` sends Google API requests for
+`https://googleapis.com` and `https://*.googleapis.com` to a test server,
+emulator, proxy, or relay that adds credentials outside gog. Path and query are
+kept and the original host is sent as `X-Forwarded-Host`. While it is set, gog
+attaches no credentials to Google API requests (no OAuth, ADC, service-account,
+`--access-token`, or API-key credentials), does not need stored tokens, and
+refuses cross-origin redirects. `--account` still selects the account label.
+Discovery documents still use `GOG_DISCOVERY_BASE_URL`; gRPC clients such as
+the Pub/Sub pull used by `gmail watch pull`, Maps/Places API-key calls, and
+downloads from non-googleapis.com URLs are not redirected. Invalid values fail
+with a usage error.
 
 Consumer Google accounts work with user-facing APIs. Admin Directory, Cloud
 Identity Groups, Chat, Keep, and domain-wide delegation require a managed

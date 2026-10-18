@@ -369,7 +369,7 @@ func TestAPICallSendsGoogleAPIRequestToBaseURL(t *testing.T) {
 	t.Cleanup(server.Close)
 	t.Setenv("GOG_DISCOVERY_BASE_URL", server.URL+"/discovery")
 
-	ctx := authclient.WithAccessToken(newCmdRuntimeJSONOutputContext(t, io.Discard, io.Discard), "test-token")
+	ctx := authclient.WithAccessToken(newCmdRuntimeJSONOutputContext(t, io.Discard, io.Discard), "secret-access-token")
 	ctx, err := googleapi.WithAPIBaseURL(ctx, server.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -379,7 +379,7 @@ func TestAPICallSendsGoogleAPIRequestToBaseURL(t *testing.T) {
 	if err := call.Run(ctx, &RootFlags{Account: "a@b.com"}); err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/gmail/v1/users/me/messages/m1" || gotQuery != "full" || gotForwardedHost != "gmail.googleapis.com" || gotAuth != "Bearer test-token" {
+	if gotPath != "/gmail/v1/users/me/messages/m1" || gotQuery != "full" || gotForwardedHost != "gmail.googleapis.com" || gotAuth != "" {
 		t.Fatalf("relayed request path=%q format=%q host=%q auth=%q", gotPath, gotQuery, gotForwardedHost, gotAuth)
 	}
 }
