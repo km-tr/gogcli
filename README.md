@@ -98,7 +98,8 @@ refuses cross-origin redirects, so the relay handles any upstream redirects.
 not on loopback.
 Discovery documents still use `GOG_DISCOVERY_BASE_URL`; gRPC clients such as
 the Pub/Sub pull used by `gmail watch pull`, Maps/Places API-key calls, and
-downloads from non-googleapis.com URLs are not redirected. Invalid values fail
+downloads from non-googleapis.com URLs are not redirected, and `gog auth` commands
+still talk to Google directly. Invalid values fail
 with a usage error.
 
 Consumer Google accounts work with user-facing APIs. Admin Directory, Cloud
