@@ -21,7 +21,7 @@ const scopeYouTubeForceSSL = "https://www.googleapis.com/auth/youtube.force-ssl"
 // Use for public data: list by channelId, videoId, playlistId, etc.
 // API key can be set via config (youtube_api_key) or GOG_YOUTUBE_API_KEY.
 func NewYouTubeWithAPIKey(ctx context.Context, apiKey string) (*youtube.Service, error) {
-	if apiKey == "" {
+	if apiKey == "" && !APIBaseURLEnabled(ctx) {
 		return nil, errYouTubeAPIKeyRequired
 	}
 

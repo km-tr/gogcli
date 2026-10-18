@@ -27,17 +27,26 @@ func WithAPIBaseURL(ctx context.Context, raw string) (context.Context, error) {
 		return ctx, nil
 	}
 
+	// The value may hold credentials, so errors never repeat it.
 	u, err := url.Parse(raw)
-	if err != nil {
-		return ctx, fmt.Errorf("invalid %s %q: %w", apiBaseURLEnv, raw, err)
-	}
-
-	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil ||
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil ||
 		(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
-		return ctx, fmt.Errorf("invalid %s %q: %w", apiBaseURLEnv, raw, errInvalidAPIBaseURL)
+		return ctx, fmt.Errorf("invalid %s: %w", apiBaseURLEnv, errInvalidAPIBaseURL)
 	}
 
 	return context.WithValue(ctx, apiBaseURLContextKey{}, &url.URL{Scheme: u.Scheme, Host: u.Host}), nil
+}
+
+// APIBaseURLEnabled reports whether GOG_GOOGLE_API_BASE_URL is set, in which
+// case gog needs no credentials of its own.
+func APIBaseURLEnabled(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+
+	baseURL, _ := ctx.Value(apiBaseURLContextKey{}).(*url.URL)
+
+	return baseURL != nil
 }
 
 // apiBaseURLHTTPClient returns the client used for every Google API request
@@ -71,8 +80,8 @@ type apiBaseURLTransport struct {
 }
 
 func (t *apiBaseURLTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if prev := req.Response; prev != nil && prev.Request != nil &&
-		(prev.Request.URL.Scheme != req.URL.Scheme || !strings.EqualFold(prev.Request.URL.Host, req.URL.Host)) {
+	if prev := req.Response; prev != nil && prev.Request != nil && !sameOrigin(prev.Request.URL, req.URL) &&
+		(!isGoogleAPIsURL(prev.Request.URL) || !sameOrigin(t.baseURL, req.URL)) {
 		if req.Body != nil {
 			_ = req.Body.Close()
 		}
@@ -80,8 +89,7 @@ func (t *apiBaseURLTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		return nil, fmt.Errorf("%w: %s", errCrossOriginRedirect, req.URL.Redacted())
 	}
 
-	host := strings.ToLower(req.URL.Hostname())
-	if req.URL.Scheme != "https" || (host != "googleapis.com" && !strings.HasSuffix(host, ".googleapis.com")) {
+	if !isGoogleAPIsURL(req.URL) {
 		return t.base.RoundTrip(req) //nolint:wrapcheck // pass-through transport
 	}
 
@@ -100,4 +108,14 @@ func (t *apiBaseURLTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	}
 
 	return resp, err //nolint:wrapcheck // pass-through transport
+}
+
+func isGoogleAPIsURL(u *url.URL) bool {
+	host := strings.ToLower(u.Hostname())
+
+	return u.Scheme == "https" && (host == "googleapis.com" || strings.HasSuffix(host, ".googleapis.com"))
+}
+
+func sameOrigin(a, b *url.URL) bool {
+	return a.Scheme == b.Scheme && strings.EqualFold(a.Host, b.Host)
 }

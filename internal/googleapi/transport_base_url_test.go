@@ -91,7 +91,7 @@ func TestAPIBaseURLClientsSendNoCredentialsAndRefuseCrossOriginRedirects(t *test
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	ctx = authclient.WithAccessToken(ctx, "secret-access-token")
+	ctx = authclient.WithAccessToken(ctx, "test-token")
 
 	ctx, err := WithAPIBaseURL(ctx, relay.URL)
 	if err != nil {
@@ -101,7 +101,7 @@ func TestAPIBaseURLClientsSendNoCredentialsAndRefuseCrossOriginRedirects(t *test
 	adcCtx := WithAuthDependencies(ctx, AuthDependencies{
 		Mode: AuthModeADC,
 		ADCTokenSource: func(context.Context, ...string) (oauth2.TokenSource, error) {
-			return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "secret-adc-token"}), nil
+			return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "adc-token"}), nil
 		},
 	})
 
@@ -135,7 +135,7 @@ func TestAPIBaseURLClientsSendNoCredentialsAndRefuseCrossOriginRedirects(t *test
 			return err
 		},
 		"youtube_api_key": func() error {
-			svc, err := NewYouTubeWithAPIKey(ctx, "secret-api-key")
+			svc, err := NewYouTubeWithAPIKey(ctx, "test-key")
 			if err != nil {
 				return err
 			}
@@ -154,7 +154,7 @@ func TestAPIBaseURLClientsSendNoCredentialsAndRefuseCrossOriginRedirects(t *test
 		},
 		"keep_service_account": func() error {
 			svc, err := newKeepWithServiceAccount(ctx, t.TempDir()+"/missing-key.json", "a@b.com", func(context.Context, []byte, string, []string) (oauth2.TokenSource, error) {
-				return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "secret-sa-token"}), nil
+				return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "sa-token"}), nil
 			})
 			if err != nil {
 				return err
@@ -178,17 +178,19 @@ func TestAPIBaseURLClientsSendNoCredentialsAndRefuseCrossOriginRedirects(t *test
 	if n := stolen.Load(); n != 0 {
 		t.Fatalf("redirect target received %d requests", n)
 	}
+
+	if _, err := NewYouTubeWithAPIKey(ctx, ""); err != nil {
+		t.Fatalf("NewYouTubeWithAPIKey without key: %v", err)
+	}
 }
 
-func TestAPIBaseURLTransportFollowsSameOriginRedirect(t *testing.T) {
+func TestAPIBaseURLTransportFollowsSameOriginRedirects(t *testing.T) {
 	relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/old") {
-			http.Redirect(w, r, "/v1/new", http.StatusFound)
-			return
-		}
-
-		if got := r.Header.Get("X-Forwarded-Host"); got != "www.googleapis.com" {
-			t.Errorf("X-Forwarded-Host = %q", got)
+		switch r.URL.Path {
+		case "/v1/relative":
+			http.Redirect(w, r, "/v1/absolute", http.StatusFound)
+		case "/v1/absolute":
+			http.Redirect(w, r, "http://"+r.Host+"/v1/done", http.StatusFound)
 		}
 	}))
 	defer relay.Close()
@@ -203,7 +205,7 @@ func TestAPIBaseURLTransportFollowsSameOriginRedirect(t *testing.T) {
 		t.Fatal("base URL client not configured")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/v1/old", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/v1/relative", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +216,7 @@ func TestAPIBaseURLTransportFollowsSameOriginRedirect(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK || resp.Request.URL.String() != "https://www.googleapis.com/v1/new" {
+	if resp.StatusCode != http.StatusOK || resp.Request.URL.Path != "/v1/done" {
 		t.Fatalf("status = %d, final URL = %s", resp.StatusCode, resp.Request.URL)
 	}
 }
@@ -227,10 +229,14 @@ func TestWithAPIBaseURLRejectsInvalidValues(t *testing.T) {
 		"http://",
 		"http://127.0.0.1/prefix",
 		"http://127.0.0.1/?x=1",
-		"http://user:pass@127.0.0.1",
+		"http://leaky-user@127.0.0.1",
+		"http://127.0.0.1:leaky-port",
 	} {
-		if _, err := WithAPIBaseURL(context.Background(), raw); err == nil {
+		_, err := WithAPIBaseURL(context.Background(), raw)
+		if err == nil {
 			t.Errorf("WithAPIBaseURL(%q) succeeded, want error", raw)
+		} else if strings.Contains(err.Error(), "leaky") || strings.Contains(err.Error(), "127.0.0.1") {
+			t.Errorf("WithAPIBaseURL(%q) error repeats the value: %v", raw, err)
 		}
 	}
 }

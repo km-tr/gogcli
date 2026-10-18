@@ -369,7 +369,7 @@ func TestAPICallSendsGoogleAPIRequestToBaseURL(t *testing.T) {
 	t.Cleanup(server.Close)
 	t.Setenv("GOG_DISCOVERY_BASE_URL", server.URL+"/discovery")
 
-	ctx := authclient.WithAccessToken(newCmdRuntimeJSONOutputContext(t, io.Discard, io.Discard), "secret-access-token")
+	ctx := authclient.WithAccessToken(newCmdRuntimeJSONOutputContext(t, io.Discard, io.Discard), "test-token")
 	ctx, err := googleapi.WithAPIBaseURL(ctx, server.URL)
 	if err != nil {
 		t.Fatal(err)
