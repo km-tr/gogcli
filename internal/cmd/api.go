@@ -204,7 +204,11 @@ func (c *APICallCmd) Run(ctx context.Context, flags *RootFlags) error {
 	if err != nil {
 		return err
 	}
-	httpClient.CheckRedirect = validateDiscoveryRedirect
+	// With GOG_GOOGLE_API_BASE_URL the transport limits redirects to the
+	// relay origin, which this Google-host check would reject.
+	if !googleapi.APIBaseURLEnabled(ctx) {
+		httpClient.CheckRedirect = validateDiscoveryRedirect
+	}
 	response, err := httpClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("call %s: %w", method.ID, err)

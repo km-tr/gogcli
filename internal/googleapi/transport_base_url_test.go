@@ -186,6 +186,10 @@ func TestAPIBaseURLClientsSendNoCredentialsAndRefuseCrossOriginRedirects(t *test
 
 func TestAPIBaseURLTransportFollowsSameOriginRedirects(t *testing.T) {
 	relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Forwarded-Host"); got != "www.googleapis.com" {
+			t.Errorf("%s: X-Forwarded-Host = %q", r.URL.Path, got)
+		}
+
 		switch r.URL.Path {
 		case "/v1/relative":
 			http.Redirect(w, r, "/v1/absolute", http.StatusFound)
@@ -230,6 +234,7 @@ func TestWithAPIBaseURLRejectsInvalidValues(t *testing.T) {
 		"http://127.0.0.1/prefix",
 		"http://127.0.0.1/?x=1",
 		"http://leaky-user@127.0.0.1",
+		"http://:18080",
 		"http://127.0.0.1:leaky-port",
 	} {
 		_, err := WithAPIBaseURL(context.Background(), raw)

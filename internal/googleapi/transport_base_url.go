@@ -29,7 +29,7 @@ func WithAPIBaseURL(ctx context.Context, raw string) (context.Context, error) {
 
 	// The value may hold credentials, so errors never repeat it.
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil ||
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil ||
 		(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
 		return ctx, fmt.Errorf("invalid %s: %w", apiBaseURLEnv, errInvalidAPIBaseURL)
 	}
@@ -89,16 +89,24 @@ func (t *apiBaseURLTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		return nil, fmt.Errorf("%w: %s", errCrossOriginRedirect, req.URL.Redacted())
 	}
 
-	if !isGoogleAPIsURL(req.URL) {
-		return t.base.RoundTrip(req) //nolint:wrapcheck // pass-through transport
-	}
+	out := req
 
-	out := req.Clone(req.Context())
-	out.Header.Del("Authorization")
-	out.Header.Set("X-Forwarded-Host", req.URL.Host)
-	out.URL.Scheme = t.baseURL.Scheme
-	out.URL.Host = t.baseURL.Host
-	out.Host = t.baseURL.Host
+	switch {
+	case isGoogleAPIsURL(req.URL):
+		out = req.Clone(req.Context())
+		out.Header.Del("Authorization")
+		out.Header.Set("X-Forwarded-Host", req.URL.Host)
+		out.URL.Scheme = t.baseURL.Scheme
+		out.URL.Host = t.baseURL.Host
+		out.Host = t.baseURL.Host
+	case sameOrigin(t.baseURL, req.URL):
+		// An absolute redirect to the base URL continues the Google request
+		// that started the chain, so the relay still needs its host.
+		if host := redirectedGoogleAPIsHost(req); host != "" {
+			out = req.Clone(req.Context())
+			out.Header.Set("X-Forwarded-Host", host)
+		}
+	}
 
 	resp, err := t.base.RoundTrip(out)
 	if resp != nil {
@@ -108,6 +116,16 @@ func (t *apiBaseURLTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	}
 
 	return resp, err //nolint:wrapcheck // pass-through transport
+}
+
+func redirectedGoogleAPIsHost(req *http.Request) string {
+	for r := req; r.Response != nil && r.Response.Request != nil; r = r.Response.Request {
+		if isGoogleAPIsURL(r.Response.Request.URL) {
+			return r.Response.Request.URL.Host
+		}
+	}
+
+	return ""
 }
 
 func isGoogleAPIsURL(u *url.URL) bool {

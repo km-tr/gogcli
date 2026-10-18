@@ -362,6 +362,10 @@ func TestAPICallSendsGoogleAPIRequestToBaseURL(t *testing.T) {
 			_, _ = fmt.Fprint(w, `{"rootUrl":"https://gmail.googleapis.com/","servicePath":"gmail/v1/users/","resources":{"messages":{"methods":{"get":{"id":"gmail.users.messages.get","httpMethod":"GET","path":"{userId}/messages/{id}","parameters":{"userId":{"location":"path","required":true},"id":{"location":"path","required":true},"format":{"location":"query"}},"scopes":["https://www.googleapis.com/auth/gmail.readonly"]}}}}}`)
 			return
 		}
+		if !strings.HasSuffix(r.URL.Path, "/moved") {
+			http.Redirect(w, r, "http://"+r.Host+r.URL.Path+"/moved?"+r.URL.RawQuery, http.StatusFound)
+			return
+		}
 		gotPath, gotQuery = r.URL.Path, r.URL.Query().Get("format")
 		gotForwardedHost, gotAuth = r.Header.Get("X-Forwarded-Host"), r.Header.Get("Authorization")
 		_, _ = fmt.Fprint(w, `{"id":"m1"}`)
@@ -379,7 +383,7 @@ func TestAPICallSendsGoogleAPIRequestToBaseURL(t *testing.T) {
 	if err := call.Run(ctx, &RootFlags{Account: "a@b.com"}); err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/gmail/v1/users/me/messages/m1" || gotQuery != "full" || gotForwardedHost != "gmail.googleapis.com" || gotAuth != "" {
+	if gotPath != "/gmail/v1/users/me/messages/m1/moved" || gotQuery != "full" || gotForwardedHost != "gmail.googleapis.com" || gotAuth != "" {
 		t.Fatalf("relayed request path=%q format=%q host=%q auth=%q", gotPath, gotQuery, gotForwardedHost, gotAuth)
 	}
 }
