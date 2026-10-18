@@ -92,8 +92,9 @@ for `https://googleapis.com` and `https://*.googleapis.com` to another endpoint,
 such as a test server, proxy, emulator, or sandbox relay. Path and query are
 kept, the original host is sent as `X-Forwarded-Host`, and the bearer token goes
 to that endpoint. Discovery documents still use `GOG_DISCOVERY_BASE_URL`;
-token refresh, Maps/Places API-key calls, and downloads from non-googleapis.com
-URLs are not redirected. Service-specific `GOG_*_BASE_URL` values that point
+token refresh, gRPC clients such as the Pub/Sub pull used by
+`gmail watch pull`, Maps/Places API-key calls, and downloads from
+non-googleapis.com URLs are not redirected. Service-specific `GOG_*_BASE_URL` values that point
 elsewhere take precedence. Invalid values fail with a usage error.
 
 Consumer Google accounts work with user-facing APIs. Admin Directory, Cloud

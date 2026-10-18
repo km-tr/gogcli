@@ -3,7 +3,7 @@
 ## 0.45.1 - Unreleased
 
 - Dependencies: update Vitest and Cloudflare Workers types within the worker’s 24-hour release cooldown.
-- API: add `GOG_GOOGLE_API_BASE_URL` to send authenticated `*.googleapis.com` requests to a test server, proxy, emulator, or sandbox relay, keeping path and query and passing the original host as `X-Forwarded-Host`.
+- Google APIs: add `GOG_GOOGLE_API_BASE_URL` to send authenticated `*.googleapis.com` requests to a test server, proxy, emulator, or sandbox relay, keeping path and query and passing the original host as `X-Forwarded-Host`.
 - Gmail: add `--note-html` and `--note-html-file` to forwards and preserve plain-note line breaks in HTML output. (#1215) — thanks @malob.
 
 - Auth: accept `gog auth <email>` as shorthand for `gog auth add <email>`; bare `gog auth` and mistyped subcommands keep their existing errors. (#1221)
