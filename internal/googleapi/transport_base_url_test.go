@@ -143,6 +143,26 @@ func TestAPIBaseURLClientsSendNoCredentialsAndRefuseCrossOriginRedirects(t *test
 
 			return err
 		},
+		"service_account_scopes": func() error {
+			svc, err := NewCloudIdentityGroups(ctx, "a@b.com")
+			if err != nil {
+				return err
+			}
+			_, err = svc.Groups.Get("groups/g1").Context(ctx).Do()
+
+			return err
+		},
+		"keep_service_account": func() error {
+			svc, err := newKeepWithServiceAccount(ctx, t.TempDir()+"/missing-key.json", "a@b.com", func(context.Context, []byte, string, []string) (oauth2.TokenSource, error) {
+				return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "secret-sa-token"}), nil
+			})
+			if err != nil {
+				return err
+			}
+			_, err = svc.Notes.List().Context(ctx).Do()
+
+			return err
+		},
 	} {
 		before := relayed.Load()
 

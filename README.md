@@ -93,7 +93,9 @@ emulator, proxy, or relay that adds credentials outside gog. Path and query are
 kept and the original host is sent as `X-Forwarded-Host`. While it is set, gog
 attaches no credentials to Google API requests (no OAuth, ADC, service-account,
 `--access-token`, or API-key credentials), does not need stored tokens, and
-refuses cross-origin redirects. `--account` still selects the account label.
+refuses cross-origin redirects, so the relay handles any upstream redirects.
+`--account` still selects the account label. Use https for endpoints that are
+not on loopback.
 Discovery documents still use `GOG_DISCOVERY_BASE_URL`; gRPC clients such as
 the Pub/Sub pull used by `gmail watch pull`, Maps/Places API-key calls, and
 downloads from non-googleapis.com URLs are not redirected. Invalid values fail

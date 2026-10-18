@@ -231,10 +231,6 @@ func optionsForServiceAccountScopes(ctx context.Context, serviceLabel string, em
 }
 
 func tokenSourceClientOptions(ctx context.Context, ts oauth2.TokenSource) []option.ClientOption {
-	if client, ok := apiBaseURLHTTPClient(ctx); ok {
-		return []option.ClientOption{option.WithHTTPClient(client)}
-	}
-
 	return []option.ClientOption{option.WithHTTPClient(&http.Client{
 		Transport: readOnlyTransportFromContext(ctx, newAuthenticatedRetryTransport(ctx, ts)),
 	})}
