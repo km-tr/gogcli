@@ -233,7 +233,7 @@ func tokenSourceClientOptions(ctx context.Context, ts oauth2.TokenSource) []opti
 func newAuthenticatedRetryTransport(ctx context.Context, ts oauth2.TokenSource) *RetryTransport {
 	return NewRetryTransport(&oauth2.Transport{
 		Source: ts,
-		Base:   quotaProjectTransportFromContext(ctx, newBaseTransport()),
+		Base:   apiBaseURLTransportFromContext(ctx, quotaProjectTransportFromContext(ctx, newBaseTransport())),
 	})
 }
 

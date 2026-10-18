@@ -39,7 +39,7 @@ func NewYouTubeWithAPIKey(ctx context.Context, apiKey string) (*youtube.Service,
 }
 
 func newYouTubeAPIKeyHTTPClient(ctx context.Context, apiKey string) (*http.Client, error) {
-	transport, err := httptransport.NewTransport(ctx, newBaseTransport(), option.WithAPIKey(apiKey))
+	transport, err := httptransport.NewTransport(ctx, apiBaseURLTransportFromContext(ctx, newBaseTransport()), option.WithAPIKey(apiKey))
 	if err != nil {
 		return nil, fmt.Errorf("youtube API key transport: %w", err)
 	}
