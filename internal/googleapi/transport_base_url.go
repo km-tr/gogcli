@@ -94,8 +94,7 @@ type apiBaseURLTransport struct {
 }
 
 func (t *apiBaseURLTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if prev := req.Response; prev != nil && prev.Request != nil && !sameOrigin(prev.Request.URL, req.URL) &&
-		(!isGoogleAPIsURL(prev.Request.URL) || !sameOrigin(t.baseURL, req.URL)) {
+	if prev := req.Response; prev != nil && prev.Request != nil && !sameOrigin(prev.Request.URL, req.URL) {
 		if req.Body != nil {
 			_ = req.Body.Close()
 		}
@@ -103,43 +102,31 @@ func (t *apiBaseURLTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		return nil, fmt.Errorf("%w: %s", errCrossOriginRedirect, req.URL.Redacted())
 	}
 
-	out := req
-
-	switch {
-	case isGoogleAPIsURL(req.URL):
-		out = req.Clone(req.Context())
-		out.Header.Del("Authorization")
-		out.Header.Set("X-Forwarded-Host", req.URL.Host)
-		out.URL.Scheme = t.baseURL.Scheme
-		out.URL.Host = t.baseURL.Host
-		out.Host = t.baseURL.Host
-	case sameOrigin(t.baseURL, req.URL):
-		// An absolute redirect to the base URL continues the Google request
-		// that started the chain, so the relay still needs its host.
-		if host := redirectedGoogleAPIsHost(req); host != "" {
-			out = req.Clone(req.Context())
-			out.Header.Set("X-Forwarded-Host", host)
-		}
+	if !isGoogleAPIsURL(req.URL) {
+		return t.base.RoundTrip(req) //nolint:wrapcheck // pass-through transport
 	}
+
+	out := req.Clone(req.Context())
+	out.Header.Del("Authorization")
+	out.Header.Set("X-Forwarded-Host", req.URL.Host)
+	out.URL.Scheme = t.baseURL.Scheme
+	out.URL.Host = t.baseURL.Host
+	out.Host = t.baseURL.Host
 
 	resp, err := t.base.RoundTrip(out)
 	if resp != nil {
-		// Redirect targets resolve against, and are compared with, the URL
-		// the caller asked for rather than the base URL
+		// Callers see the Google URL they asked for. A redirect to the base
+		// URL's own origin is mapped back to that Google origin, so it is
+		// rewritten again and read-only and Discovery redirect checks still
+		// see a Google URL.
 		resp.Request = req
-	}
-
-	return resp, err //nolint:wrapcheck // pass-through transport
-}
-
-func redirectedGoogleAPIsHost(req *http.Request) string {
-	for r := req; r.Response != nil && r.Response.Request != nil; r = r.Response.Request {
-		if isGoogleAPIsURL(r.Response.Request.URL) {
-			return r.Response.Request.URL.Host
+		if loc, locErr := resp.Location(); locErr == nil && sameOrigin(t.baseURL, loc) {
+			loc.Scheme, loc.Host = req.URL.Scheme, req.URL.Host
+			resp.Header.Set("Location", loc.String())
 		}
 	}
 
-	return ""
+	return resp, err //nolint:wrapcheck // pass-through transport
 }
 
 func isGoogleAPIsURL(u *url.URL) bool {

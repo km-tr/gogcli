@@ -220,9 +220,39 @@ func TestAPIBaseURLTransportFollowsSameOriginRedirects(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK || resp.Request.URL.Path != "/v1/done" {
+	if resp.StatusCode != http.StatusOK || resp.Request.URL.String() != "https://www.googleapis.com/v1/done" {
 		t.Fatalf("status = %d, final URL = %s", resp.StatusCode, resp.Request.URL)
 	}
+}
+
+func TestAPIBaseURLReadOnlyPOSTFollowsRelayRedirect(t *testing.T) {
+	relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.RawQuery == "" {
+			http.Redirect(w, r, "http://"+r.Host+r.URL.Path+"?moved=1", http.StatusTemporaryRedirect)
+		}
+	}))
+	defer relay.Close()
+
+	ctx, err := WithAPIBaseURL(WithReadOnly(context.Background(), true), relay.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client, ok := apiBaseURLHTTPClient(ctx)
+	if !ok {
+		t.Fatal("base URL client not configured")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://www.googleapis.com/calendar/v3/freeBusy", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("read-only POST through relay redirect: %v", err)
+	}
+	_ = resp.Body.Close()
 }
 
 func TestWithAPIBaseURLRejectsInvalidValues(t *testing.T) {
