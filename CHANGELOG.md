@@ -2,8 +2,11 @@
 
 ## 0.45.1 - Unreleased
 
+- Dependencies: refresh the Google API client, golangci-lint, Cloudflare Workers types, Wrangler, PostCSS, and Undici while retaining Go 1.26, pnpm 11, and the worker’s 24-hour release cooldown.
+- Drive: preserve requested top-level false booleans in `drive get --json`, including the default `starred` and `hasThumbnail` fields; keep conditionally absent fields omitted. (#1223) — thanks @postoso.
+- CI: use macOS 27 runners for Darwin checks and release preflight while enforcing the macOS 15.0 deployment target.
 - Dependencies: update Vitest and Cloudflare Workers types within the worker’s 24-hour release cooldown.
-- Google APIs: add `GOG_GOOGLE_API_BASE_URL` to send `*.googleapis.com` requests to a test server, emulator, proxy, or relay that adds credentials outside gog; requests keep path and query, pass the original host as `X-Forwarded-Host`, carry no gog credentials, and refuse cross-origin redirects. (#1225)
+- Google APIs: add `GOG_GOOGLE_API_BASE_URL` to send `*.googleapis.com` requests to a test server, emulator, proxy, or relay that adds credentials outside gog; requests keep path and query, pass the original host as `X-Forwarded-Host`, carry no gog credentials, and refuse cross-origin redirects. (#1225, #1226) — thanks @km-tr.
 - Gmail: add `--note-html` and `--note-html-file` to forwards and preserve plain-note line breaks in HTML output. (#1215) — thanks @malob.
 
 - Auth: accept `gog auth <email>` as shorthand for `gog auth add <email>`; bare `gog auth` and mistyped subcommands keep their existing errors. (#1221)
